@@ -1,0 +1,27 @@
+# --- Reconstruction data & outputs (large, machine-specific) ---
+data/
+captures/
+*.mkv
+*.ply
+*.pcd
+*.log
+*.err
+*.npz
+
+# --- Open3D source clone (pulled by scripts, not vendored) ---
+Open3D/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.conda/
+*.egg-info/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

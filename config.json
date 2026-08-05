@@ -1,0 +1,16 @@
+{
+    "name": "myscan",
+    "path_dataset": "data/myscan",
+    "path_intrinsic": "data/myscan/intrinsic.json",
+    "n_frames_per_fragment": 40,
+    "depth_scale": 1000.0,
+    "max_depth": 3.0,
+    "voxel_size": 0.05,
+    "depth_diff_max": 0.07,
+    "preference_loop_closure_odometry": 0.1,
+    "preference_loop_closure_registration": 5.0,
+    "tsdf_cubic_size": 3.0,
+    "icp_method": "color",
+    "global_registration": "ransac",
+    "python_multi_threading": true
+}

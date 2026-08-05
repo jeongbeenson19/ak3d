@@ -1,0 +1,14 @@
+# Reconstruction workstation dependencies.
+# Install into a dedicated env (conda or venv), Python 3.10 recommended.
+#
+#   conda create -n o3d python=3.10 && conda activate o3d
+#   pip install -r requirements.txt
+#
+# NOTE: Native Azure Kinect SDK (libk4a / k4a-tools) must also be installed
+# at the OS level so pyk4a can read .mkv recordings. See README "Setup".
+
+open3d>=0.18.0
+pyk4a>=1.5.0
+opencv-python>=4.8.0
+numpy>=1.24,<2.0
+matplotlib>=3.7    # required by Open3D reconstruction_system (feature-match viz)
