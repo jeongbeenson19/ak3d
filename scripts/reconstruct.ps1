@@ -28,7 +28,7 @@
 param(
     [string]$Config = "config.json",
     [string]$Dataset = "",
-    [ValidateSet("make", "register", "refine", "integrate")]
+    [ValidateSet("make", "register", "refine", "integrate", "slac", "slac_integrate")]
     [string[]]$Stages = @("make", "register", "refine", "integrate")
 )
 
@@ -92,12 +92,21 @@ if ($Dataset -ne "") {
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
 
 # Flags for the requested stages, in canonical order.
-$order = @("make", "register", "refine", "integrate")
+$order = @("make", "register", "refine", "integrate", "slac", "slac_integrate")
 $flags = @()
 foreach ($s in $order) { if ($Stages -contains $s) { $flags += "--$s" } }
 
-# Log goes into the dataset (timestamp) directory alongside the results.
-$logPath = Join-Path $outDir "reconstruct.log"
+# SLAC integrate writes its own output (a point cloud when save_output_as=pointcloud).
+if ($Stages -contains "slac_integrate") {
+    $sceneOut = Join-Path (Split-Path -Parent $sceneOut) "..\slac\0.050\output_slac_pointcloud.ply"
+    $sceneOut = [System.IO.Path]::GetFullPath($sceneOut)
+}
+
+# Log goes into the dataset (timestamp) directory alongside the results. Stamped so
+# a later run (e.g. --slac) does not clobber the log of the run that produced the
+# current results.
+$runStamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$logPath = Join-Path $outDir "reconstruct_$runStamp.log"
 
 Write-Host "Running reconstruction: $($flags -join ' ')" -ForegroundColor Cyan
 Write-Host "Log -> $logPath" -ForegroundColor DarkGray
@@ -120,7 +129,12 @@ if ($runExit -ne 0) {
     exit $runExit
 }
 
-Write-Host "Done. Mesh: $sceneOut" -ForegroundColor Green
+Write-Host "Done. Result: $sceneOut" -ForegroundColor Green
 Write-Host "Log:  $logPath" -ForegroundColor DarkGray
-$sceneDir = Split-Path -Parent $sceneOut
-Write-Host "Point cloud:  python scripts\export_pointcloud.py --input `"$sceneOut`" --output `"$(Join-Path $sceneDir 'integrated_pcd.ply')`"" -ForegroundColor DarkGray
+if ($Stages -contains "slac_integrate") {
+    # SLAC already emits a point cloud; no mesh->pcd conversion needed.
+    Write-Host "View: python scripts\view_result.py --path `"$sceneOut`"" -ForegroundColor DarkGray
+} elseif ($Stages -contains "integrate") {
+    $sceneDir = Split-Path -Parent $sceneOut
+    Write-Host "Point cloud:  python scripts\export_pointcloud.py --input `"$sceneOut`" --output `"$(Join-Path $sceneDir 'integrated_pcd.ply')`"" -ForegroundColor DarkGray
+}
