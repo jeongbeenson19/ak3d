@@ -16,11 +16,15 @@
 
 .EXAMPLE
     .\scripts\record.ps1 -DepthMode WFOV_UNBINNED -Seconds 60 -ShowDepth
+
+.EXAMPLE
+    # Record, then upload straight to the workstation (see transfer.example.json)
+    .\scripts\record.ps1 -Seconds 60 -Send
 #>
 param(
     [string]$Root = "captures",
     [ValidateSet("NFOV_UNBINNED", "NFOV_2X2BINNED", "WFOV_UNBINNED", "WFOV_2X2BINNED")]
-    [string]$DepthMode = "NFOV_UNBINNED",
+    [string]$DepthMode = "WFOV_UNBINNED",
     [ValidateSet("720p", "1080p", "1440p", "1536p", "2160p", "3072p")]
     [string]$ColorResolution = "720p",
     [ValidateSet(5, 15, 30)]
@@ -28,7 +32,13 @@ param(
     # Optional fixed recording length in seconds. Omit / 0 to record until 'q'.
     [int]$Seconds = 0,
     # Also open a colorized depth window.
-    [switch]$ShowDepth
+    [switch]$ShowDepth,
+    # Upload to the workstation when recording stops (default: transfer.json auto_send).
+    [switch]$Send,
+    # Keep the capture on this laptop even if auto_send is on.
+    [switch]$NoSend,
+    # With -Send: delete the local .mkv once the remote copy is verified.
+    [switch]$DeleteLocal
 )
 
 $repoRoot = Split-Path -Parent $PSScriptRoot   # C:\ak3d
@@ -54,6 +64,9 @@ $pyArgs = @(
 )
 if ($Seconds -gt 0) { $pyArgs += @("--seconds", "$Seconds") }
 if ($ShowDepth) { $pyArgs += "--show-depth" }
+if ($Send) { $pyArgs += "--send" }
+if ($NoSend) { $pyArgs += "--no-send" }
+if ($DeleteLocal) { $pyArgs += "--delete-local" }
 
 & $python @pyArgs
 exit $LASTEXITCODE

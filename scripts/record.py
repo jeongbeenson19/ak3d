@@ -13,9 +13,14 @@ Controls:
     q or ESC  - stop recording and save
     (or Ctrl+C in the terminal)
 
+When the recording is saved it is handed straight to scripts/transfer.py, so the
+workstation has the .mkv without a second manual step. That is on by default when
+transfer.json sets "auto_send": true; --send / --no-send override it per run.
+
 Usage:
     python scripts/record.py
     python scripts/record.py --seconds 60 --show-depth
+    python scripts/record.py --seconds 60 --send
     python scripts/record.py --color-resolution 1080p --root D:\\scans
 """
 from __future__ import annotations
@@ -91,6 +96,12 @@ def main() -> None:
                     help="Also open a colorized depth window")
     ap.add_argument("--preview-width", type=int, default=3080,
                     help="Preview window width in px (aspect kept)")
+    ap.add_argument("--send", dest="send", action="store_true", default=None,
+                    help="Upload the capture to the workstation when recording stops")
+    ap.add_argument("--no-send", dest="send", action="store_false",
+                    help="Keep the capture on this laptop (overrides auto_send)")
+    ap.add_argument("--delete-local", action="store_true",
+                    help="With --send: delete the local .mkv once the copy is verified")
     args = ap.parse_args()
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -165,8 +176,49 @@ def main() -> None:
     size_mb = output.stat().st_size / (1024 * 1024)
     print(f"\nSaved: {output}  ({size_mb:.1f} MB, {frames} frames, "
           f"{time.monotonic() - start:.1f}s)")
-    print(f"Next:  python scripts/extract_mkv.py --input \"{output}\" "
-          f"--output data/myscan --every 1")
+
+    if maybe_send(capture_dir, args):
+        return
+    print(f"Next:  python scripts/transfer.py send \"{capture_dir}\"   "
+          f"(then extract on the workstation)")
+
+
+def maybe_send(capture_dir: Path, args) -> bool:
+    """Hand the finished capture to the workstation. Returns True if we tried.
+
+    A failed upload must never look like a failed recording: the .mkv is already
+    safe on disk, so we report the error and let the user rerun transfer.py, which
+    resumes from whatever the workstation received.
+    """
+    try:
+        import transfer  # scripts/ is on sys.path when running scripts/record.py
+    except ImportError as e:
+        if args.send:
+            print(f"--send requested but scripts/transfer.py is unusable: {e}",
+                  file=sys.stderr)
+        return False
+
+    cfg = transfer.Config.load()
+    send = cfg.auto_send if args.send is None else args.send
+    if not send:
+        return False
+    if not (cfg.host and cfg.user and cfg.remote_root):
+        print("skipping upload: transfer.json has no host/user/remote_root "
+              "(copy transfer.example.json).", file=sys.stderr)
+        return False
+
+    try:
+        transfer.send_capture(cfg, capture_dir,
+                              delete_local=args.delete_local or None)
+        return True
+    except transfer.TransferError as e:
+        print(f"\nUpload failed: {e}\n"
+              f"The recording is safe at {capture_dir}. Resume with:\n"
+              f"  python scripts/transfer.py send \"{capture_dir}\"", file=sys.stderr)
+    except KeyboardInterrupt:
+        print(f"\nUpload interrupted. Resume with:\n"
+              f"  python scripts/transfer.py send \"{capture_dir}\"", file=sys.stderr)
+    return True
 
 
 if __name__ == "__main__":
