@@ -27,3 +27,6 @@ env/
 Thumbs.db
 
 /external
+
+# --- Workstation transfer target (host/user are machine-specific) ---
+/transfer.json

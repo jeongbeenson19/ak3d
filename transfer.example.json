@@ -1,0 +1,22 @@
+{
+    "_comment": "Copy to transfer.json (gitignored) and fill in your workstation. Every key can be overridden by AK3D_WS_<KEY> or a transfer.py flag.",
+
+    "_host": "Either a ~/.ssh/config Host alias (leave user/port empty and let ssh resolve them) or a bare hostname/IP with user + port spelled out here.",
+    "host": "jb167",
+    "user": "",
+    "port": 0,
+    "identity_file": "",
+
+    "_remote_root": "Absolute path on the workstation; each capture lands in <remote_root>/<TIMESTAMP>/.",
+    "remote_root": "/home/jeongbeenson/ak3d/captures",
+    "local_root": "captures",
+
+    "verify": true,
+    "auto_send": true,
+    "delete_local_after_send": false,
+
+    "chunk_mb": 8,
+    "retries": 3,
+    "cipher": "aes128-gcm@openssh.com",
+    "ssh_options": []
+}

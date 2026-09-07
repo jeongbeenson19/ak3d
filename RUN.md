@@ -64,7 +64,39 @@ $env:PATH += ";C:\Program Files\Azure Kinect SDK v1.4.2\sdk\windows-desktop\amd6
 
 ---
 
-## 2. 추출 (mkv → color/depth/intrinsic)
+## 2. 전송 (노트북 → 워크스테이션)
+
+```powershell
+.\scripts\send.ps1 -Latest
+```
+
+- 최초 1회만: `transfer.example.json`을 **`transfer.json`**으로 복사하고 워크스테이션
+  주소를 채운 뒤 `.\scripts\send.ps1 -Check`로 접속 확인 (SSH 키 로그인 권장 —
+  `-Check`가 키 등록 명령까지 알려줍니다).
+- `captures\<TIMESTAMP>\` 통째로 워크스테이션의
+  `<remote_root>/<TIMESTAMP>/`에 올라갑니다.
+- **중단돼도 괜찮습니다.** 같은 명령을 다시 실행하면 워크스테이션에 이미 도착한
+  바이트 다음부터 **이어서 전송**합니다 (수 GB 파일이라 이게 중요).
+- 전송 중에는 `capture.mkv.part`로 저장되고, 양쪽 **sha256이 일치할 때만**
+  `capture.mkv`로 이름이 바뀝니다 → 워크스테이션이 깨진 파일을 읽을 일이 없음.
+- 자주 쓰는 옵션:
+
+| 명령 | 설명 |
+|---|---|
+| `.\scripts\send.ps1 -Check` | 접속·원격 경로·여유 공간 확인 |
+| `.\scripts\send.ps1 -List` | 어떤 촬영이 전송됐고 어떤 게 남았는지 |
+| `.\scripts\send.ps1 -AllPending` | 안 보낸 촬영 전부 전송 |
+| `.\scripts\send.ps1 20260820_162603` | 특정 촬영 지정 |
+| `.\scripts\send.ps1 -Latest -DeleteLocal` | 검증 후 노트북 원본 삭제 (디스크 확보) |
+
+> **촬영 직후 자동 전송**: `transfer.json`에 `"auto_send": true`를 두면
+> `.\scripts\record.ps1`이 녹화를 마치자마자 알아서 올립니다.
+> 한 번만 끄려면 `-NoSend`, 한 번만 켜려면 `-Send`.
+> 업로드가 실패해도 촬영본은 노트북에 그대로 남고, 재개 명령을 출력해 줍니다.
+
+---
+
+## 3. 추출 (mkv → color/depth/intrinsic)
 
 ```powershell
 python scripts\extract_mkv.py --input captures\<TIMESTAMP>\capture.mkv --output data\myscan --every 1
@@ -76,7 +108,7 @@ python scripts\extract_mkv.py --input captures\<TIMESTAMP>\capture.mkv --output 
 
 ---
 
-## 3. 재건 (Open3D Reconstruction System)
+## 4. 재건 (Open3D Reconstruction System)
 
 `-Dataset`으로 촬영시각 폴더를 지정 → 중간물·결과·로그가 **모두 그 폴더 안**에 저장됨:
 
@@ -96,7 +128,7 @@ python scripts\extract_mkv.py --input captures\<TIMESTAMP>\capture.mkv --output 
 
 ---
 
-## 4. 포인트클라우드 추출 (★ 최종 산출물)
+## 5. 포인트클라우드 추출 (★ 최종 산출물)
 
 표준 `--integrate`는 메시를 내므로, 정점을 포인트클라우드로 변환:
 
@@ -109,7 +141,7 @@ python scripts\export_pointcloud.py --input data\myscan\<TIMESTAMP>\scene\integr
 
 ---
 
-## 5. 확인
+## 6. 확인
 
 ```powershell
 python scripts\view_result.py --path data\myscan\<TIMESTAMP>\scene\integrated_pcd.ply

@@ -14,10 +14,10 @@ Roles are split: **laptop** records, **workstation** reconstructs.
 
 ```
  laptop                         workstation
- ┌─────────────┐   output.mkv   ┌──────────────────────────────────────────────┐
- │ k4arecorder │ ────────────►  │ extract_mkv.py                                │
- │  (Step 1)   │                │   mkv → color/ depth/ intrinsic.json (Step 3) │
- └─────────────┘                │        │                                      │
+ ┌─────────────┐   transfer.py  ┌──────────────────────────────────────────────┐
+ │  record.py  │   ssh, resumes │ extract_mkv.py                                │
+ │  (Step 1)   │ ────────────►  │   mkv → color/ depth/ intrinsic.json (Step 3) │
+ └─────────────┘     (Step 2)   │        │                                      │
                                 │        ▼                                      │
                                 │ run_system.py  (Steps 4–5)                    │
                                 │   --make      fragments (RGBD odometry)       │
@@ -80,7 +80,25 @@ for a depth window. (The preview needs the venv + pyk4a, not just the SDK.)
 - Keep 1–3 m from surfaces; **cover windows/mirrors** (reflections corrupt depth);
   add temporary texture to blank white walls.
 
-Copy the capture directory to the workstation.
+### Step 2 — Send the capture to the workstation (laptop)
+```powershell
+.\scripts\send.ps1 -Check     # once: confirm ssh key login and the remote root
+.\scripts\send.ps1 -Latest    # after every recording
+```
+[scripts/transfer.py](scripts/transfer.py) streams `captures\<TIMESTAMP>\` to
+`<remote_root>/<TIMESTAMP>/` over stock OpenSSH — nothing extra to install on
+either machine. Captures are multi-GB, so the upload is built to survive a bad
+link: it **resumes** (rerun the same command and it continues from the byte the
+workstation already has), retries with backoff, and lands as `capture.mkv.part`
+that is renamed only once **sha256 matches on both sides** — the reconstruction
+steps can never pick up a half-written recording.
+
+Copy `transfer.example.json` → `transfer.json` (gitignored) and fill in your
+workstation; every key also accepts an `AK3D_WS_*` env var or a CLI flag. With
+`"auto_send": true` the upload starts by itself when `record.ps1` finishes
+(`-NoSend` / `-Send` override it per run). Other useful forms:
+`-List` (sent vs. pending), `-AllPending`, `-DeleteLocal` (free laptop disk after
+the copy is verified).
 
 ### Step 3 — Extract mkv → dataset (workstation)
 ```bash
@@ -89,9 +107,6 @@ python scripts/extract_mkv.py --input captures/<TIMESTAMP>/capture.mkv --output 
 Produces `data/myscan/{color,depth,intrinsic.json}`. Depth is aligned to the color
 camera, so `intrinsic.json` (the color intrinsics) is emitted automatically — no
 manual intrinsic copying. Use `--every 2` to keep every 2nd frame for speed.
-
-> Step 2 in the split is just "prepare the env" (see Setup). Numbering follows the
-> original recipe.
 
 ### Steps 4–5 — Reconstruct
 ```powershell

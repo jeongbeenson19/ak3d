@@ -19,7 +19,30 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import open3d as o3d
+
+
+def load_point_cloud(path: Path) -> o3d.geometry.PointCloud:
+    """Read a point cloud, keeping colors correct.
+
+    SLAC writes colors as `property float red/green/blue` in [0, 1]. Open3D's
+    legacy PLY reader assumes float colors are 0-255 and divides by 255, so such
+    clouds load almost black (and many external viewers do the same). Reading via
+    the tensor API and re-saving through the legacy writer emits standard
+    `uchar` RGB, which every viewer reads correctly.
+    """
+    try:
+        pcd = o3d.t.io.read_point_cloud(str(path)).to_legacy()
+    except Exception:
+        pcd = o3d.io.read_point_cloud(str(path))
+
+    if pcd.has_colors():
+        c = np.asarray(pcd.colors)
+        if c.size and c.max() <= 1.0 / 255 * 2:
+            print("  (colors looked 255x too dark - rescaling)")
+            pcd.colors = o3d.utility.Vector3dVector(np.clip(c * 255.0, 0.0, 1.0))
+    return pcd
 
 
 def main() -> None:
@@ -49,9 +72,11 @@ def main() -> None:
             pcd.estimate_normals()
         print(f"Mesh -> point cloud: {len(pcd.points)} points from mesh vertices")
     else:
-        # Already a point cloud on disk.
-        pcd = o3d.io.read_point_cloud(str(src))
+        # Already a point cloud on disk. Use the tensor reader so SLAC output
+        # (float colors in [0,1]) is not mis-scaled; see load_point_cloud below.
+        pcd = load_point_cloud(src)
         print(f"Loaded point cloud: {len(pcd.points)} points")
+        print("  re-saving with standard uchar RGB (portable to other viewers)")
 
     if args.voxel > 0:
         before = len(pcd.points)
